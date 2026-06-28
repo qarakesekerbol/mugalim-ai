@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Mugalim.ai — Мұғалімнің AI көмекшісі",
-  description: "ҚМЖ, тест, эссе, презентация — секундтар ішінде. Қазақстан мұғалімдеріне арналған AI платформасы.",
+  title: "ShyraqAI — Білімің — жарығың",
+  description: "Оқушы, студент, мұғалім — барлығына арналған қазақша AI платформасы. Презентация, реферат, сабақ жоспары — бір жерде.",
 };
 
 export default function RootLayout({
