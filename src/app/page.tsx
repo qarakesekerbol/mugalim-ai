@@ -1,3 +1,4 @@
+import Link from "next/link";
 import ContactForm from "@/app/components/ContactForm";
 
 const benefits = [
@@ -44,6 +45,7 @@ const features = [
     icon: "📋",
     title: "ҚМЖ жасау",
     desc: "Күнтізбелік-мерзімдік жоспарды автоматты түрде кез келген пән мен сынып үшін дайындаңыз.",
+    href: "/generate",
   },
   {
     icon: "✅",
@@ -324,18 +326,29 @@ export default function Home() {
             </p>
           </div>
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {features.map((item) => (
-              <div
-                key={item.title}
-                className="flex gap-4 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition hover:border-blue-200 hover:shadow-md"
-              >
-                <span className="text-3xl">{item.icon}</span>
-                <div>
-                  <h3 className="mb-1 font-bold text-gray-900">{item.title}</h3>
-                  <p className="text-sm leading-relaxed text-gray-500">{item.desc}</p>
+            {features.map((item) => {
+              const card = (
+                <div className="flex h-full gap-4 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition hover:border-blue-200 hover:shadow-md">
+                  <span className="text-3xl">{item.icon}</span>
+                  <div>
+                    <h3 className="mb-1 font-bold text-gray-900">{item.title}</h3>
+                    <p className="text-sm leading-relaxed text-gray-500">{item.desc}</p>
+                    {"href" in item && (
+                      <span className="mt-2 inline-block text-xs font-semibold text-blue-600">
+                        Қолданып көру →
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+              return "href" in item ? (
+                <Link key={item.title} href={(item as { href: string }).href} className="block">
+                  {card}
+                </Link>
+              ) : (
+                <div key={item.title}>{card}</div>
+              );
+            })}
             {/* Көбірек жоспарда */}
             <div className="flex gap-4 rounded-2xl border border-dashed border-blue-200 bg-blue-50 p-6">
               <span className="text-3xl">🚀</span>
