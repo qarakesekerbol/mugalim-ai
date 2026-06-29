@@ -130,8 +130,8 @@ function buildTable(tableLines: string[]): Table | null {
       bottom: borderDef,
       left: borderDef,
       right: borderDef,
-      insideH: borderDef,
-      insideV: borderDef,
+      insideHorizontal: borderDef,
+      insideVertical: borderDef,
     },
   });
 }
