@@ -138,21 +138,53 @@ export async function POST(request: Request) {
       teacherName || ""
     );
 
-    const message = await client.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 8000,
-      messages: [{ role: "user", content: prompt }],
+    let stream: AsyncIterable<{ type: string; delta?: { type?: string; text?: string } }>;
+    try {
+      stream = await client.messages.create({
+        model: "claude-sonnet-4-6",
+        max_tokens: 8000,
+        stream: true,
+        messages: [{ role: "user", content: prompt }],
+      }) as AsyncIterable<{ type: string; delta?: { type?: string; text?: string } }>;
+    } catch (error) {
+      console.error("Anthropic API error:", error);
+      return NextResponse.json(
+        { error: "Қате шықты. API кілтін тексеріп, қайталап көріңіз." },
+        { status: 500 }
+      );
+    }
+
+    const encoder = new TextEncoder();
+    const readable = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const event of stream) {
+            if (
+              event.type === "content_block_delta" &&
+              event.delta?.type === "text_delta" &&
+              event.delta.text
+            ) {
+              controller.enqueue(encoder.encode(event.delta.text));
+            }
+          }
+        } finally {
+          controller.close();
+        }
+      },
     });
 
-    const text =
-      message.content[0].type === "text" ? message.content[0].text : "";
-
-    return NextResponse.json({ result: text });
+    return new Response(readable, {
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-cache",
+        "X-Accel-Buffering": "no",
+      },
+    });
   } catch (error) {
-    console.error("Anthropic API error:", error);
+    console.error("Request parse error:", error);
     return NextResponse.json(
-      { error: "Қате шықты. API кілтін тексеріп, қайталап көріңіз." },
-      { status: 500 }
+      { error: "Сұраныс қателі. Қайталап көріңіз." },
+      { status: 400 }
     );
   }
 }

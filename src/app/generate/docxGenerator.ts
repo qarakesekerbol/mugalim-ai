@@ -15,13 +15,14 @@ import {
 
 type DocxChild = Paragraph | Table;
 
-const BLUE = "1D4ED8";
-const BLUE_LIGHT = "EFF6FF";
-const GRAY_BORDER = "D1D5DB";
+const BLACK = "000000";
+const GRAY_HEADER_BG = "F3F4F6";  // кесте бас жолы — ашық сұр
+const GRAY_ROW_ALT = "F9FAFB";   // кезектесетін жолдар
+const GRAY_BORDER = "9CA3AF";    // кесте шекаралары
 const FONT = "Times New Roman";
 const SIZE_BODY = 22; // 11pt
-const SIZE_H1 = 36;  // 18pt
-const SIZE_H2 = 28;  // 14pt
+const SIZE_H1 = 32;  // 16pt
+const SIZE_H2 = 26;  // 13pt
 const SIZE_H3 = 24;  // 12pt
 
 function isSeparatorRow(line: string): boolean {
@@ -66,7 +67,7 @@ function parseInline(text: string, textColor = "000000"): TextRun[] {
 }
 
 function parseCellParagraphs(rawText: string, isHeader: boolean): Paragraph[] {
-  const textColor = isHeader ? "FFFFFF" : "000000";
+  const textColor = BLACK;
   const cleaned = stripHtml(rawText);
   const lines = cleaned.split("\n").filter((l) => l.trim().length > 0);
   if (lines.length === 0) {
@@ -104,10 +105,10 @@ function buildTable(tableLines: string[]): Table | null {
       return new TableCell({
         children: parseCellParagraphs(cellText, isHeader),
         shading: isHeader
-          ? { type: ShadingType.SOLID, fill: BLUE, color: BLUE }
+          ? { type: ShadingType.SOLID, fill: GRAY_HEADER_BG, color: GRAY_HEADER_BG }
           : rowIdx % 2 === 0
           ? undefined
-          : { type: ShadingType.SOLID, fill: "F9FAFB", color: "F9FAFB" },
+          : { type: ShadingType.SOLID, fill: GRAY_ROW_ALT, color: GRAY_ROW_ALT },
         width: { size: colWidths[ci], type: WidthType.PERCENTAGE },
         margins: { top: 80, bottom: 80, left: 120, right: 120 },
         borders: {
@@ -159,10 +160,10 @@ function parseMarkdown(markdown: string): DocxChild[] {
     // H1
     if (line.startsWith("# ")) {
       elements.push(new Paragraph({
-        children: [new TextRun({ text: line.slice(2), bold: true, size: SIZE_H1, color: BLUE, font: FONT })],
+        children: [new TextRun({ text: line.slice(2), bold: true, size: SIZE_H1, color: BLACK, font: FONT })],
         alignment: AlignmentType.CENTER,
         spacing: { after: 280 },
-        border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: BLUE } },
+        border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: GRAY_BORDER } },
       }));
       i++;
       continue;
@@ -171,10 +172,9 @@ function parseMarkdown(markdown: string): DocxChild[] {
     // H2
     if (line.startsWith("## ")) {
       elements.push(new Paragraph({
-        children: [new TextRun({ text: line.slice(3), bold: true, size: SIZE_H2, color: BLUE, font: FONT })],
-        spacing: { before: 360, after: 160 },
-        shading: { type: ShadingType.SOLID, fill: BLUE_LIGHT, color: BLUE_LIGHT },
-        indent: { left: 160 },
+        children: [new TextRun({ text: line.slice(3), bold: true, size: SIZE_H2, color: BLACK, font: FONT })],
+        spacing: { before: 280, after: 120 },
+        border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: GRAY_BORDER } },
       }));
       i++;
       continue;
@@ -211,8 +211,7 @@ function parseMarkdown(markdown: string): DocxChild[] {
         children: parseInline(line.slice(2)),
         indent: { left: 720 },
         spacing: { before: 120, after: 120 },
-        border: { left: { style: BorderStyle.SINGLE, size: 16, color: BLUE } },
-        shading: { type: ShadingType.SOLID, fill: BLUE_LIGHT, color: BLUE_LIGHT },
+        border: { left: { style: BorderStyle.SINGLE, size: 12, color: GRAY_BORDER } },
       }));
       i++;
       continue;

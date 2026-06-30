@@ -8,6 +8,24 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
 
+function WordIcon() {
+  return (
+    <svg viewBox="0 0 22 22" className="h-4 w-4 shrink-0" aria-hidden="true">
+      <rect width="22" height="22" rx="3" fill="#2B579A"/>
+      <text x="11" y="16" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Arial, sans-serif">W</text>
+    </svg>
+  );
+}
+
+function PdfIcon() {
+  return (
+    <svg viewBox="0 0 34 22" className="h-4 w-auto shrink-0" aria-hidden="true">
+      <rect width="34" height="22" rx="3" fill="#DC2626"/>
+      <text x="17" y="16" textAnchor="middle" fill="white" fontSize="9" fontWeight="bold" fontFamily="Arial, sans-serif">PDF</text>
+    </svg>
+  );
+}
+
 const SUBJECTS = [
   "Қазақ тілі", "Қазақ әдебиеті", "Орыс тілі", "Орыс әдебиеті",
   "Ағылшын тілі", "Математика", "Алгебра", "Геометрия", "Информатика",
@@ -98,12 +116,27 @@ export default function GeneratePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
-      const data = await res.json();
+
       if (!res.ok) {
+        const data = await res.json();
         setError(data.error || "Қате шықты");
-      } else {
-        setResult(data.result);
+        return;
       }
+
+      // Streaming режимі — мәтін бірте-бірте шығады
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+      let accumulated = "";
+      setResult("");
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        accumulated += decoder.decode(value, { stream: true });
+        setResult(accumulated);
+      }
+      accumulated += decoder.decode();
+      setResult(accumulated);
     } catch {
       setError("Интернет байланысын тексеріңіз");
     } finally {
@@ -309,7 +342,7 @@ export default function GeneratePage() {
         )}
 
         {/* Result */}
-        {result && (
+        {result !== null && (
           <div className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden print-area">
 
             {/* Action bar */}
@@ -369,11 +402,11 @@ export default function GeneratePage() {
                   className="flex items-center gap-1.5 bg-white/15 hover:bg-white/25 disabled:opacity-60 text-white text-sm font-medium px-3 py-1.5 rounded-lg transition-colors"
                 >
                   {downloading === "docx" ? (
-                    <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+                    <svg className="animate-spin h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
                     </svg>
-                  ) : <>📄</>}
+                  ) : <WordIcon />}
                   <span className="hidden sm:inline">Word</span>
                 </button>
 
@@ -383,7 +416,7 @@ export default function GeneratePage() {
                   title="Басып шығару диалогында 'PDF ретінде сақтау' таңдаңыз"
                   className="flex items-center gap-1.5 bg-white/15 hover:bg-white/25 text-white text-sm font-medium px-3 py-1.5 rounded-lg transition-colors"
                 >
-                  📕 <span className="hidden sm:inline">PDF</span>
+                  <PdfIcon /> <span className="hidden sm:inline">PDF</span>
                 </button>
 
                 {/* Print */}
@@ -398,42 +431,47 @@ export default function GeneratePage() {
 
             {/* Document content */}
             <div className="px-6 sm:px-10 py-8" style={{ fontSize: "15px", lineHeight: "1.7" }}>
+              {loading && (
+                <div className="flex items-center gap-2 text-gray-400 text-sm mb-4 no-print">
+                  <span className="inline-block w-2 h-2 rounded-full bg-gray-400 animate-pulse" />
+                  <span>ҚМЖ жасалуда...</span>
+                </div>
+              )}
               <ReactMarkdown
                 remarkPlugins={[remarkGfm, remarkMath]}
                 rehypePlugins={[rehypeRaw, rehypeKatex]}
                 components={{
                   h1: ({ children }) => (
-                    <h1 style={{ fontSize: "20px" }} className="font-bold text-blue-700 mt-2 mb-4 pb-3 border-b-2 border-blue-200 text-center">
+                    <h1 style={{ fontSize: "18px" }} className="font-bold text-gray-900 mt-2 mb-4 pb-2 border-b border-gray-400 text-center">
                       {children}
                     </h1>
                   ),
                   h2: ({ children }) => (
-                    <h2 style={{ fontSize: "16px" }} className="font-bold text-blue-600 mt-7 mb-3 flex items-center gap-2">
-                      <span className="inline-block w-1 h-5 bg-blue-500 rounded-full shrink-0" />
+                    <h2 style={{ fontSize: "14px" }} className="font-bold text-gray-900 mt-6 mb-2 uppercase tracking-wide">
                       {children}
                     </h2>
                   ),
                   h3: ({ children }) => (
-                    <h3 style={{ fontSize: "14px" }} className="font-bold text-gray-700 mt-4 mb-2">
+                    <h3 style={{ fontSize: "13px" }} className="font-bold text-gray-900 mt-4 mb-1">
                       {children}
                     </h3>
                   ),
                   p: ({ children }) => (
-                    <p className="text-gray-700 mb-3">{children}</p>
+                    <p className="text-gray-900 mb-2">{children}</p>
                   ),
                   ul: ({ children }) => (
-                    <ul className="mb-4 space-y-1.5 pl-1">{children}</ul>
+                    <ul className="mb-3 space-y-1 pl-1">{children}</ul>
                   ),
                   ol: ({ children }) => (
-                    <ol className="mb-4 space-y-1.5 pl-5 list-decimal">{children}</ol>
+                    <ol className="mb-3 space-y-1 pl-5 list-decimal">{children}</ol>
                   ),
                   li: ({ children, ...props }) => {
                     const isOrdered = (props as { ordered?: boolean }).ordered;
                     return isOrdered ? (
-                      <li className="text-gray-700 leading-relaxed">{children}</li>
+                      <li className="text-gray-900 leading-relaxed">{children}</li>
                     ) : (
-                      <li className="text-gray-700 flex items-start gap-2">
-                        <span className="mt-[6px] shrink-0 w-2 h-2 rounded-full bg-blue-400" />
+                      <li className="text-gray-900 flex items-start gap-2">
+                        <span className="mt-[7px] shrink-0 w-1.5 h-1.5 rounded-full bg-gray-600" />
                         <span>{children}</span>
                       </li>
                     );
@@ -442,52 +480,52 @@ export default function GeneratePage() {
                     <strong className="font-semibold text-gray-900">{children}</strong>
                   ),
                   em: ({ children }) => (
-                    <em className="italic text-gray-500">{children}</em>
+                    <em className="italic text-gray-700">{children}</em>
                   ),
                   blockquote: ({ children }) => (
-                    <blockquote className="my-4 pl-5 pr-4 py-3 border-l-4 border-blue-400 bg-blue-50 rounded-r-xl text-gray-600 italic">
+                    <blockquote className="my-3 pl-4 pr-3 py-2 border-l-2 border-gray-400 text-gray-700 italic">
                       {children}
                     </blockquote>
                   ),
                   table: ({ children }) => (
-                    <div className="overflow-x-auto my-4 rounded-xl border border-gray-200 shadow-sm">
+                    <div className="overflow-x-auto my-3 border border-gray-400">
                       <table className="w-full border-collapse text-sm">
                         {children}
                       </table>
                     </div>
                   ),
                   thead: ({ children }) => (
-                    <thead className="bg-blue-600 text-white">{children}</thead>
+                    <thead className="bg-gray-100 text-gray-900">{children}</thead>
                   ),
                   th: ({ children }) => (
-                    <th className="px-4 py-3 text-left font-semibold text-[13px] border-r border-blue-500 last:border-r-0">
+                    <th className="px-3 py-2 text-left font-bold text-[13px] border border-gray-400">
                       {children}
                     </th>
                   ),
                   tbody: ({ children }) => <tbody>{children}</tbody>,
                   tr: ({ children }) => (
-                    <tr className="even:bg-gray-50 border-b border-gray-100 last:border-0 hover:bg-blue-50/40 transition-colors">
+                    <tr className="border-b border-gray-300 last:border-0">
                       {children}
                     </tr>
                   ),
                   td: ({ children }) => (
-                    <td className="px-4 py-3 text-gray-700 align-top border-r border-gray-100 last:border-r-0 text-[13px]">
+                    <td className="px-3 py-2 text-gray-900 align-top border border-gray-300 text-[13px]">
                       {children}
                     </td>
                   ),
                   code: ({ children, className }) => {
                     const isBlock = className?.includes("language-");
                     return isBlock ? (
-                      <code className="block bg-gray-900 text-green-300 rounded-xl p-4 text-[13px] font-mono my-4 overflow-x-auto">
+                      <code className="block bg-gray-100 text-gray-900 border border-gray-300 rounded p-3 text-[13px] font-mono my-3 overflow-x-auto">
                         {children}
                       </code>
                     ) : (
-                      <code className="bg-blue-50 text-blue-800 rounded px-1.5 py-0.5 text-[13px] font-mono">
+                      <code className="bg-gray-100 text-gray-900 border border-gray-200 rounded px-1.5 py-0.5 text-[13px] font-mono">
                         {children}
                       </code>
                     );
                   },
-                  hr: () => <hr className="my-5 border-gray-200" />,
+                  hr: () => <hr className="my-4 border-gray-300" />,
                 }}
               >
                 {result}
