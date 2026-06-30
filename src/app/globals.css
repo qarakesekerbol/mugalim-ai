@@ -26,6 +26,13 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Кесте ұяшықтарындағы параграф бос орынды алып таста */
+.print-area td p,
+.print-area th p {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
 @media print {
   /* 1. Барлық бетті жасыр */
   body * {
@@ -98,13 +105,22 @@ body {
     page-break-after: auto !important;
   }
 
-  /* Кесте ұяшығы padding-ін кішірейт */
+  /* Кесте ұяшығы — қара шекара, тығыз */
   .print-area td,
   .print-area th {
-    padding: 6px 10px !important;
+    padding: 4px 8px !important;
     vertical-align: top !important;
     word-wrap: break-word !important;
     overflow-wrap: break-word !important;
+    font-size: 11px !important;
+    border: 1px solid #000 !important;
+  }
+
+  /* Ұяшық ішіндегі параграф бос орыны */
+  .print-area td p,
+  .print-area th p {
+    margin: 0 !important;
+    padding: 0 !important;
     font-size: 11px !important;
   }
 

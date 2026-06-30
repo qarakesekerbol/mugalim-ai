@@ -48,6 +48,12 @@ type FormState = {
   duration: string;
   assessmentType: string;
   specialNeeds: string;
+  // Қосымша міндетті емес өрістер
+  learningObjectives: string;
+  lessonGoal: string;
+  suggestedText: string;
+  theory: string;
+  extraInstructions: string;
 };
 
 const INITIAL_FORM: FormState = {
@@ -59,6 +65,11 @@ const INITIAL_FORM: FormState = {
   duration: "40 минут",
   assessmentType: "Тек қалыптастырушы бағалау",
   specialNeeds: "Жоқ",
+  learningObjectives: "",
+  lessonGoal: "",
+  suggestedText: "",
+  theory: "",
+  extraInstructions: "",
 };
 
 function SelectField({
@@ -94,6 +105,9 @@ function SelectField({
 
 export default function GeneratePage() {
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
+  const [showExtra, setShowExtra] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -104,6 +118,32 @@ export default function GeneratePage() {
   const set = (key: keyof FormState) => (v: string) =>
     setForm((f) => ({ ...f, [key]: v }));
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      setFileError("Файл өте үлкен (макс. 10 МБ)");
+      return;
+    }
+    setFileError(null);
+    setUploadedFile(file);
+  };
+
+  const readBase64 = (file: File): Promise<string> =>
+    new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve((reader.result as string).split(",")[1]);
+      reader.readAsDataURL(file);
+    });
+
+  const readText = (file: File): Promise<string> =>
+    new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.readAsText(file, "utf-8");
+    });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -111,10 +151,27 @@ export default function GeneratePage() {
     setError(null);
 
     try {
+      // Файлды дайында (болса)
+      let fileData: Record<string, unknown> | null = null;
+      if (uploadedFile) {
+        const ext = uploadedFile.name.split(".").pop()?.toLowerCase() ?? "";
+        if (ext === "txt") {
+          const text = await readText(uploadedFile);
+          fileData = { type: "text", text, name: uploadedFile.name };
+        } else if (ext === "pdf") {
+          const base64 = await readBase64(uploadedFile);
+          fileData = { type: "pdf", base64, name: uploadedFile.name };
+        } else {
+          const base64 = await readBase64(uploadedFile);
+          const mimeType = ext === "png" ? "image/png" : "image/jpeg";
+          fileData = { type: "image", mimeType, base64, name: uploadedFile.name };
+        }
+      }
+
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, fileData }),
       });
 
       if (!res.ok) {
@@ -314,6 +371,163 @@ export default function GeneratePage() {
               />
             </div>
 
+            {/* Файл жүктеу */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Материал жүктеу
+                <span className="ml-1 text-xs text-gray-400 font-normal">(міндетті емес · .txt · .pdf · .jpg · .png)</span>
+              </label>
+              {uploadedFile ? (
+                <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5">
+                  <span className="text-base shrink-0">
+                    {/\.(jpg|jpeg|png)$/i.test(uploadedFile.name) ? "🖼️" : uploadedFile.name.toLowerCase().endsWith(".pdf") ? "📄" : "📝"}
+                  </span>
+                  <span className="text-sm text-gray-700 flex-1 min-w-0 truncate">{uploadedFile.name}</span>
+                  <span className="text-xs text-gray-400 shrink-0 hidden sm:inline">
+                    {uploadedFile.size < 1024 * 1024
+                      ? `${(uploadedFile.size / 1024).toFixed(0)} КБ`
+                      : `${(uploadedFile.size / 1024 / 1024).toFixed(1)} МБ`}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => { setUploadedFile(null); setFileError(null); }}
+                    className="shrink-0 p-1 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-red-50"
+                    title="Файлды жою"
+                  >
+                    <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+                      <path d="M2.22 2.22a.75.75 0 011.06 0L8 6.94l4.72-4.72a.75.75 0 111.06 1.06L9.06 8l4.72 4.72a.75.75 0 11-1.06 1.06L8 9.06l-4.72 4.72a.75.75 0 01-1.06-1.06L6.94 8 2.22 3.28a.75.75 0 010-1.06z" />
+                    </svg>
+                  </button>
+                </div>
+              ) : (
+                <label
+                  htmlFor="file-upload"
+                  className="flex items-center gap-3 border-2 border-dashed border-gray-200 hover:border-blue-300 hover:bg-blue-50/20 rounded-xl px-4 py-3 cursor-pointer transition-colors group"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
+                    className="w-5 h-5 text-gray-400 group-hover:text-blue-400 shrink-0">
+                    <path strokeLinecap="round" strokeLinejoin="round"
+                      d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                  </svg>
+                  <div className="min-w-0">
+                    <span className="text-sm text-gray-500 group-hover:text-blue-500 block">
+                      Оқулық бетінің суреті, PDF немесе мәтін файлын жүктеу
+                    </span>
+                    <span className="text-xs text-gray-400">AI сол материалды негізге алып ҚМЖ жасайды · макс. 10 МБ</span>
+                  </div>
+                  <input
+                    id="file-upload"
+                    type="file"
+                    accept=".txt,.pdf,.jpg,.jpeg,.png"
+                    onChange={handleFileChange}
+                    className="sr-only"
+                  />
+                </label>
+              )}
+              {fileError && <p className="mt-1 text-xs text-red-500">{fileError}</p>}
+            </div>
+
+            {/* Қосымша өрістер — жасыру/көрсету */}
+            <div className="border-t border-gray-100 pt-3">
+              <button
+                type="button"
+                onClick={() => setShowExtra((v) => !v)}
+                className="w-full flex items-center justify-between text-sm text-gray-500 hover:text-gray-700 transition-colors py-0.5"
+              >
+                <span className="flex items-center gap-1.5">
+                  <span className="text-base leading-none">{showExtra ? "−" : "+"}</span>
+                  <span className="font-medium">Қосымша өрістер</span>
+                  <span className="text-xs text-gray-400">(міндетті емес — бос қалдыруға болады)</span>
+                </span>
+                <svg
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className={`w-4 h-4 shrink-0 transition-transform ${showExtra ? "rotate-180" : ""}`}
+                >
+                  <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+                </svg>
+              </button>
+
+              {showExtra && (
+                <div className="space-y-3 mt-3">
+                  {/* Оқу мақсаттары */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Оқу мақсаттары
+                      <span className="ml-1 text-xs text-gray-400 font-normal">— бос болса AI МЖМБС бойынша өзі жазады</span>
+                    </label>
+                    <textarea
+                      rows={3}
+                      placeholder={"Мысалы:\n5.1.1.1 — натурал сандар жиыны ұғымын меңгеру\n5.1.1.2 — натурал сандармен амалдар орындау"}
+                      value={form.learningObjectives}
+                      onChange={(e) => set("learningObjectives")(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300 text-gray-900 placeholder-gray-400 text-sm resize-none"
+                    />
+                  </div>
+
+                  {/* Сабақ мақсаты */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Сабақ мақсаты
+                      <span className="ml-1 text-xs text-gray-400 font-normal">— бос болса AI жазады</span>
+                    </label>
+                    <textarea
+                      rows={3}
+                      placeholder="Мысалы: Оқушылар бөлшек сандарды қосуды үйренеді және күнделікті өмірде қолдана алады..."
+                      value={form.lessonGoal}
+                      onChange={(e) => set("lessonGoal")(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300 text-gray-900 placeholder-gray-400 text-sm resize-none"
+                    />
+                  </div>
+
+                  {/* Ұсынылатын мәтін */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Ұсынылатын мәтін / мазмұн
+                      <span className="ml-1 text-xs text-gray-400 font-normal">— сабаққа кіргізгіңіз келетін мәтін</span>
+                    </label>
+                    <textarea
+                      rows={3}
+                      placeholder="Мысалы: Жаратылыстану сабағында қолданғыңыз келетін мәтін, тапсырма мазмұны немесе диалог..."
+                      value={form.suggestedText}
+                      onChange={(e) => set("suggestedText")(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300 text-gray-900 placeholder-gray-400 text-sm resize-none"
+                    />
+                  </div>
+
+                  {/* Теория */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Теория / ереже / формула
+                      <span className="ml-1 text-xs text-gray-400 font-normal">— сабаққа нақты теорияны кіргізу</span>
+                    </label>
+                    <textarea
+                      rows={3}
+                      placeholder="Мысалы: a/b + c/d = (ad + bc) / bd формуласы; немесе Ом заңы: U = IR..."
+                      value={form.theory}
+                      onChange={(e) => set("theory")(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300 text-gray-900 placeholder-gray-400 text-sm resize-none"
+                    />
+                  </div>
+
+                  {/* Қосымша нұсқаулар */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Қосымша нұсқаулар
+                      <span className="ml-1 text-xs text-gray-400 font-normal">— ҚМЖ-ға кез келген арнайы талап</span>
+                    </label>
+                    <textarea
+                      rows={2}
+                      placeholder="Мысалы: Сабақта жұптық жұмыс болмасын; Рефлексияда «Шуғыл жазу» әдісін қолдан..."
+                      value={form.extraInstructions}
+                      onChange={(e) => set("extraInstructions")(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300 text-gray-900 placeholder-gray-400 text-sm resize-none"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
             <button
               type="submit"
               disabled={loading || !form.subject}
@@ -447,7 +661,7 @@ export default function GeneratePage() {
                     </h1>
                   ),
                   h2: ({ children }) => (
-                    <h2 style={{ fontSize: "14px" }} className="font-bold text-gray-900 mt-6 mb-2 uppercase tracking-wide">
+                    <h2 style={{ fontSize: "14px" }} className="font-bold text-gray-900 mt-3 mb-1 uppercase tracking-wide">
                       {children}
                     </h2>
                   ),
@@ -457,7 +671,7 @@ export default function GeneratePage() {
                     </h3>
                   ),
                   p: ({ children }) => (
-                    <p className="text-gray-900 mb-2">{children}</p>
+                    <p className="text-gray-900 mb-1 leading-snug">{children}</p>
                   ),
                   ul: ({ children }) => (
                     <ul className="mb-3 space-y-1 pl-1">{children}</ul>
@@ -488,8 +702,8 @@ export default function GeneratePage() {
                     </blockquote>
                   ),
                   table: ({ children }) => (
-                    <div className="overflow-x-auto my-3 border border-gray-400">
-                      <table className="w-full border-collapse text-sm">
+                    <div className="overflow-x-auto my-1">
+                      <table className="w-full border-collapse text-[13px]" style={{ borderSpacing: 0 }}>
                         {children}
                       </table>
                     </div>
@@ -498,18 +712,18 @@ export default function GeneratePage() {
                     <thead className="bg-gray-100 text-gray-900">{children}</thead>
                   ),
                   th: ({ children }) => (
-                    <th className="px-3 py-2 text-left font-bold text-[13px] border border-gray-400">
+                    <th className="px-2 py-1.5 text-left font-bold text-[13px] align-top" style={{ border: "1px solid #000" }}>
                       {children}
                     </th>
                   ),
                   tbody: ({ children }) => <tbody>{children}</tbody>,
                   tr: ({ children }) => (
-                    <tr className="border-b border-gray-300 last:border-0">
+                    <tr>
                       {children}
                     </tr>
                   ),
                   td: ({ children }) => (
-                    <td className="px-3 py-2 text-gray-900 align-top border border-gray-300 text-[13px]">
+                    <td className="px-2 py-1.5 text-gray-900 align-top text-[13px]" style={{ border: "1px solid #000" }}>
                       {children}
                     </td>
                   ),
@@ -525,7 +739,7 @@ export default function GeneratePage() {
                       </code>
                     );
                   },
-                  hr: () => <hr className="my-4 border-gray-300" />,
+                  hr: () => <hr className="my-2 border-gray-400" />,
                 }}
               >
                 {result}
