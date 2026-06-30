@@ -3,6 +3,7 @@ import {
   BorderStyle,
   Document,
   Packer,
+  PageOrientation,
   Paragraph,
   ShadingType,
   Table,
@@ -20,10 +21,27 @@ const GRAY_HEADER_BG = "F3F4F6";  // кесте бас жолы — ашық с�
 const GRAY_ROW_ALT = "F9FAFB";   // кезектесетін жолдар
 const GRAY_BORDER = "000000";    // кесте шекаралары — қара
 const FONT = "Times New Roman";
-const SIZE_BODY = 22; // 11pt
+const SIZE_BODY = 20; // 10pt — кесте ішінде ыңғайлы
 const SIZE_H1 = 32;  // 16pt
 const SIZE_H2 = 26;  // 13pt
 const SIZE_H3 = 24;  // 12pt
+
+// A4 landscape, 10mm margin — нақты мазмұн ені (twips)
+const CONTENT_WIDTH = 15700;
+
+// Баған санына сай нақты DXA ендері (жиынтығы = CONTENT_WIDTH)
+function getColWidths(colCount: number): number[] {
+  switch (colCount) {
+    case 2: return [3700, 12000];                          // ақпарат кестесі
+    case 3: return [4200, 9200, 2300];                     // БЖБ критерий кестесі
+    case 5: return [2200, 5000, 4200, 2500, 1800];         // сабақ барысы (ЕБҚсыз)
+    case 6: return [1800, 4200, 3500, 2200, 2200, 1800];   // сабақ барысы (ЕБҚмен)
+    default: {
+      const w = Math.floor(CONTENT_WIDTH / colCount);
+      return Array(colCount).fill(w);
+    }
+  }
+}
 
 function isSeparatorRow(line: string): boolean {
   const cells = line.split("|").slice(1, -1);
@@ -94,9 +112,9 @@ function buildTable(tableLines: string[]): Table | null {
 
   const rows = dataLines.map(parseRow);
   const colCount = Math.max(...rows.map((r) => r.length));
-  const colWidths = Array(colCount).fill(Math.floor(100 / colCount));
+  const colWidths = getColWidths(colCount); // нақты DXA (twips) ендер
 
-  const borderDef = { style: BorderStyle.SINGLE, size: 4, color: GRAY_BORDER };
+  const borderDef = { style: BorderStyle.SINGLE, size: 6, color: GRAY_BORDER };
 
   const tableRows = rows.map((row, rowIdx) => {
     const isHeader = rowIdx === 0;
@@ -109,8 +127,8 @@ function buildTable(tableLines: string[]): Table | null {
           : rowIdx % 2 === 0
           ? undefined
           : { type: ShadingType.SOLID, fill: GRAY_ROW_ALT, color: GRAY_ROW_ALT },
-        width: { size: colWidths[ci], type: WidthType.PERCENTAGE },
-        margins: { top: 80, bottom: 80, left: 120, right: 120 },
+        width: { size: colWidths[ci], type: WidthType.DXA },
+        margins: { top: 60, bottom: 60, left: 100, right: 100 },
         borders: {
           top: borderDef,
           bottom: borderDef,
@@ -124,7 +142,7 @@ function buildTable(tableLines: string[]): Table | null {
 
   return new Table({
     rows: tableRows,
-    width: { size: 100, type: WidthType.PERCENTAGE },
+    width: { size: CONTENT_WIDTH, type: WidthType.DXA },
     layout: TableLayoutType.FIXED,
     borders: {
       top: borderDef,
@@ -285,7 +303,12 @@ export async function generateDocx(
       {
         properties: {
           page: {
-            margin: { top: 1134, right: 1134, bottom: 1134, left: 1134 },
+            size: {
+              orientation: PageOrientation.LANDSCAPE,
+              width: 16839,  // A4 landscape ені (twips)
+              height: 11907, // A4 landscape биіктігі (twips)
+            },
+            margin: { top: 567, right: 567, bottom: 567, left: 567 }, // 10mm
           },
         },
         children,
